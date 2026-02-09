@@ -41,7 +41,7 @@ The agent runs two services:
 
 ### 1. Get your API keys
 
-- **Neutron**: Sign up at [dashboard.neutron.me](https://dashboard.neutron.me) → create API key
+- **Neutron**: Sign up at [portal.neutron.me](https://portal.neutron.me) → create API key
 - **Anthropic**: Get a key at [console.anthropic.com](https://console.anthropic.com)
 
 ### 2. Clone and configure
