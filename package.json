@@ -1,34 +1,29 @@
 {
   "name": "neutron-ai-agent",
-  "version": "0.1.0",
-  "description": "AI agent with Bitcoin Lightning wallet capabilities — starter template using Neutron SDK",
+  "version": "1.0.0",
+  "description": "AI agent with Bitcoin Lightning wallet capabilities powered by Neutron SDK and Claude",
   "type": "module",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "tsx src/agent.ts",
     "build": "tsc",
-    "dev": "tsx watch src/agent.ts"
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
   },
-  "keywords": [
-    "neutron",
-    "ai-agent",
-    "bitcoin",
-    "lightning",
-    "payments",
-    "claude",
-    "openai",
-    "tool-calling",
-    "mcp",
-    "starter-template"
-  ],
-  "author": "Neutron <support@neutron.me>",
+  "keywords": ["bitcoin", "lightning", "ai-agent", "neutron", "claude", "payments"],
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
-    "neutron-sdk": "^0.1.0"
+    "neutron-sdk": "^0.1.0",
+    "express": "^4.21.0",
+    "dotenv": "^16.4.0"
   },
   "devDependencies": {
-    "@types/node": "^20.10.0",
-    "tsx": "^4.7.0",
-    "typescript": "^5.3.0"
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

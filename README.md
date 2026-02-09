@@ -1,181 +1,203 @@
-# Neutron AI Agent
+# ⚡ Neutron AI Agent
 
-An AI agent with Bitcoin Lightning wallet capabilities. Clone, add your keys, and you have an AI that can send and receive Bitcoin.
+An AI agent that earns, spends, and manages Bitcoin over the Lightning Network. Built with [Claude](https://anthropic.com) and the [Neutron SDK](https://www.npmjs.com/package/neutron-sdk).
 
-Built with [Claude](https://anthropic.com) + [Neutron SDK](https://www.npmjs.com/package/neutron-sdk).
+This is a **starter template** — clone it, customize it, and build your own Bitcoin-powered AI.
 
-## Quick Start (2 minutes)
+```
+npm install && cp .env.example .env && npm run dev
+```
 
-### 1. Clone & Install
+---
+
+## How It Works
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Agent as AI Agent (Claude)
+    participant Neutron as Neutron SDK
+    participant LN as Lightning Network
+    participant WH as Webhook Server
+
+    User->>Agent: "Write me a poem (100 sats)"
+    Agent->>Neutron: createInvoice(100 sats)
+    Neutron->>LN: Generate BOLT11 invoice
+    Neutron-->>Agent: invoice + txnId
+    Agent-->>User: "Pay this invoice: lnbc1u..."
+    User->>LN: Pays invoice ⚡
+    LN->>WH: Payment notification
+    WH->>Agent: onPaymentReceived(txnId)
+    Agent-->>User: "Payment received! Here's your poem..."
+```
+
+The agent runs two services:
+1. **Chat loop** — interactive CLI where users talk to Claude, which has tools to create invoices, send payments, and check balances
+2. **Webhook server** — Express server that listens for payment notifications from the Lightning Network and notifies the agent
+
+---
+
+## Quick Start
+
+### 1. Get your API keys
+
+- **Neutron**: Sign up at [dashboard.neutron.me](https://dashboard.neutron.me) → create API key
+- **Anthropic**: Get a key at [console.anthropic.com](https://console.anthropic.com)
+
+### 2. Clone and configure
 
 ```bash
 git clone https://github.com/Neutronpay/neutron-ai-agent.git
 cd neutron-ai-agent
 npm install
-```
-
-### 2. Add Your Keys
-
-```bash
 cp .env.example .env
 ```
 
-Edit `.env` with your credentials:
+Edit `.env` with your keys:
 
-```bash
-NEUTRON_API_KEY=your-neutron-key       # Get at https://neutron.me
-NEUTRON_API_SECRET=your-neutron-secret
-ANTHROPIC_API_KEY=your-anthropic-key   # Get at https://console.anthropic.com
+```
+NEUTRON_API_KEY=your-key
+NEUTRON_API_SECRET=your-secret
+ANTHROPIC_API_KEY=sk-ant-...
+WEBHOOK_SECRET=pick-something-random
 ```
 
 ### 3. Run
 
 ```bash
-npm start
+npm run dev
 ```
 
-That's it. You're chatting with an AI that has a Bitcoin wallet.
-
-## What Can It Do?
+You'll see:
 
 ```
-You: Check my balance
-Agent: Your BTC balance is 0.00150000 BTC (150,000 sats).
+🔔 Webhook server listening on port 3000
 
-You: Create an invoice for 10,000 sats
-Agent: Here's your Lightning invoice:
-       lnbc100u1p... [invoice string]
-       QR page: https://...
-       Share this with the payer — it expires in 1 hour.
+⚡ Neutron AI Agent ready!
+   Type a message to chat. Ctrl+C to exit.
+
+You: _
+```
+
+---
+
+## Example Conversation
+
+```
+You: Hey! Can you write me a haiku about Bitcoin?
+
+Agent: I'd love to! My creative writing costs 100 sats.
+       Let me generate an invoice for you...
+
+       ⚡ Lightning Invoice:
+       lnbc1u1pjk...
+
+       Pay this and I'll get to work!
+
+You: [pays invoice via wallet]
+
+Agent: 💰 Payment received! Here's your haiku:
+
+       Digital gold flows free
+       Lightning strikes across the world
+       Sats stack silently
+
+You: Nice! What's my balance looking like?
+
+Agent: Let me check...
+       BTC: 0.00150000 (150,000 sats)
+       USDT: 25.00
 
 You: Send 500 sats to alice@getalby.com
-Agent: I'll send 500 sats to alice@getalby.com.
-       ✓ Payment sent! Transaction ID: abc123...
 
-You: What's the BTC price?
-Agent: Current rates:
-       BTCUSD: $97,500
-       BTCEUR: €89,200
-       BTCUSDT: 97,480
-
-You: Show my last 5 transactions
-Agent: [shows recent transaction history]
-
-You: Convert 0.001 BTC to USDT
-Agent: Converted 0.001 BTC → 97.50 USDT at rate 97,500.
+Agent: Done! Sent 500 sats to alice@getalby.com.
+       Transaction ID: txn_abc123
 ```
 
-## Available Tools (10)
+---
+
+## Agent Tools
+
+The agent has six tools it can call:
 
 | Tool | Description |
 |------|-------------|
-| `check_balance` | All wallet balances (BTC, USDT, fiat) |
-| `create_invoice` | Generate Lightning invoice to receive BTC |
-| `pay_invoice` | Pay a BOLT11 Lightning invoice |
-| `send_to_address` | Send to a Lightning Address (user@domain.com) |
-| `get_exchange_rate` | Current BTC rates against major currencies |
-| `list_transactions` | Recent transaction history with filters |
-| `check_transaction` | Status of a specific transaction |
-| `decode_invoice` | Inspect an invoice before paying |
-| `get_deposit_address` | BTC on-chain or USDT deposit address |
-| `convert_currency` | Swap between BTC, USDT, fiat |
+| `check_balance` | Get wallet balances across all currencies |
+| `create_invoice` | Create a Lightning invoice (amount + memo) |
+| `send_payment` | Send sats to a Lightning address |
+| `check_payment` | Check status of a specific transaction |
+| `list_transactions` | Recent transaction history |
+| `get_exchange_rate` | Current BTC/USD exchange rates |
 
-## How It Works
+---
 
-```
-User Input → Claude (with tool definitions) → Tool Call → Neutron SDK → Wallet Action → Response
-```
+## Use Cases
 
-1. You type a message
-2. Claude decides which wallet tool(s) to use
-3. The tool handler calls the Neutron SDK
-4. Results are returned to Claude
-5. Claude formats a natural language response
+### 💸 Pay-per-task
+Charge users before performing work. The agent quotes a price, generates an invoice, and delivers only after payment confirms.
 
-The agent supports **multi-step tool use** — Claude can chain multiple tools in a single turn (e.g., check balance, then create an invoice).
+### 🤖 Agent-to-agent payments
+Connect multiple agents — one agent pays another for sub-tasks over Lightning. Instant, programmable, no bank required.
 
-## Customization
+### 📡 Micropayments
+Charge fractions of a cent per API call, per word, or per image. Lightning makes sub-dollar payments practical.
 
-### Change the AI Model
+### 🎨 Creative marketplace
+An AI that sells poems, code, images, or analysis — each with its own price. A fully autonomous digital worker.
 
-```bash
-MODEL=claude-sonnet-4-20250514 npm start   # Faster, cheaper
-MODEL=claude-opus-4-20250514 npm start   # Most capable
-```
-
-### Use Sandbox for Testing
-
-```bash
-NEUTRON_API_URL=https://enapi.npay.dev npm start
-```
-
-### Customize the System Prompt
-
-Edit the `SYSTEM_PROMPT` in `src/agent.ts` to change the agent's personality and behavior:
-
-```typescript
-const SYSTEM_PROMPT = `You are a Bitcoin payment assistant for my coffee shop.
-When creating invoices, always add the memo "Coffee Shop Payment".
-Be friendly and casual.`;
-```
-
-### Add Custom Tools
-
-Add new tools in `src/tools.ts` and handlers in `src/handlers.ts`:
-
-```typescript
-// tools.ts — add to the tools array
-{
-  name: "my_custom_tool",
-  description: "Does something cool",
-  input_schema: {
-    type: "object",
-    properties: { /* ... */ },
-    required: [],
-  },
-}
-
-// handlers.ts — add a case in handleTool
-case "my_custom_tool": {
-  // Your logic here using neutron SDK
-  return "Result";
-}
-```
+---
 
 ## Project Structure
 
 ```
-neutron-ai-agent/
-├── src/
-│   ├── agent.ts      # Main CLI agent loop + Claude integration
-│   ├── tools.ts      # Tool definitions (what the AI can do)
-│   └── handlers.ts   # Tool handlers (executes wallet actions)
-├── .env.example      # Template for API keys
-├── package.json
-└── tsconfig.json
+src/
+├── index.ts      # Entry point — starts agent + webhook server
+├── agent.ts      # Claude AI loop with tool calling
+├── tools.ts      # Tool implementations using neutron-sdk
+└── webhook.ts    # Express server for payment notifications
 ```
 
-## Use Cases
+That's the entire codebase. ~200 lines of meaningful code.
 
-- **Personal Bitcoin assistant** — Manage your Lightning wallet conversationally
-- **Customer support bot** — Help users make payments (add safety checks)
-- **Trading assistant** — Monitor rates and execute swaps
-- **Payment automation** — Build workflows that involve Bitcoin payments
-- **Learning tool** — Understand Lightning Network through conversation
+---
 
-## Security Notes
+## Customizing
 
-- API keys are loaded from environment variables — never committed to git
-- The agent confirms with the user before sending payments
-- Use sandbox (`enapi.npay.dev`) for testing with fake funds
-- In production, add spending limits and approval flows for sends
+### Change the agent's personality
+Edit the `SYSTEM_PROMPT` in `src/agent.ts`. Tell it what to charge, how to behave, what tasks to accept.
 
-## Links
+### Add new tools
+1. Add a tool definition to `toolDefinitions` in `src/tools.ts`
+2. Add the implementation in the `executeTool` switch statement
+3. The agent will automatically discover and use it
 
-- [Neutron SDK](https://www.npmjs.com/package/neutron-sdk) — TypeScript SDK
-- [Neutron MCP](https://www.npmjs.com/package/neutron-mcp) — MCP server for AI coding tools
-- [Neutron React](https://github.com/Neutronpay/neutron-react-payment-component) — React payment component
-- [Docs](https://docs.neutron.me)
+### Change the pricing
+Set `TASK_PRICE_SATS` in `.env`, or modify the system prompt to use dynamic pricing.
+
+### Use a different model
+Set `CLAUDE_MODEL` in `.env` (e.g. `claude-sonnet-4-20250514`, `claude-opus-4-20250514`).
+
+### Deploy the webhook
+In production, expose the webhook endpoint publicly (e.g. via ngrok, Cloudflare Tunnel, or your server). Then register it with Neutron:
+
+```typescript
+import { Neutron } from "neutron-sdk";
+
+const neutron = new Neutron({ apiKey: "...", apiSecret: "..." });
+await neutron.webhooks.create({
+  callback: "https://your-domain.com/webhooks/neutron",
+  secret: "your-webhook-secret",
+});
+```
+
+---
+
+## Tech Stack
+
+- **[Neutron SDK](https://www.npmjs.com/package/neutron-sdk)** — Bitcoin Lightning payments
+- **[Anthropic Claude](https://anthropic.com)** — AI with tool calling
+- **Express** — Webhook listener
+- **TypeScript** — Type safety throughout
 
 ## License
 

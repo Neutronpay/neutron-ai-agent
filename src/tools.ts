@@ -1,14 +1,27 @@
+import { Neutron, formatSats } from "neutron-sdk";
 import type Anthropic from "@anthropic-ai/sdk";
 
-/**
- * Tool definitions for the AI agent.
- * Each tool maps to a Neutron SDK operation.
- */
-export const tools: Anthropic.Tool[] = [
+// ── Neutron client (singleton) ──────────────────────────────
+
+let _neutron: Neutron | null = null;
+
+export function getNeutron(): Neutron {
+  if (!_neutron) {
+    _neutron = new Neutron({
+      apiKey: process.env.NEUTRON_API_KEY!,
+      apiSecret: process.env.NEUTRON_API_SECRET!,
+    });
+  }
+  return _neutron;
+}
+
+// ── Tool definitions for Claude ─────────────────────────────
+
+export const toolDefinitions: Anthropic.Tool[] = [
   {
     name: "check_balance",
     description:
-      "Check all wallet balances. Returns BTC, USDT, and any fiat currency balances with available amounts.",
+      "Get wallet balances. Returns available balance for each currency (BTC, USDT, etc.).",
     input_schema: {
       type: "object" as const,
       properties: {},
@@ -18,95 +31,43 @@ export const tools: Anthropic.Tool[] = [
   {
     name: "create_invoice",
     description:
-      "Create a Lightning invoice to receive Bitcoin. Returns a BOLT11 payment string and QR code page URL. The invoice is auto-confirmed and ready for the payer immediately.",
+      "Create a Lightning invoice to receive Bitcoin. Returns a BOLT11 invoice string the payer can use.",
     input_schema: {
       type: "object" as const,
       properties: {
         amount_sats: {
           type: "number",
-          description: "Amount to receive in satoshis (e.g. 10000 = 10,000 sats)",
+          description: "Amount in satoshis (1 BTC = 100,000,000 sats)",
         },
         memo: {
           type: "string",
-          description: "Description shown to the payer (e.g. 'Coffee order #42')",
+          description: "Description shown to the payer",
         },
       },
-      required: ["amount_sats"],
+      required: ["amount_sats", "memo"],
     },
   },
   {
-    name: "pay_invoice",
+    name: "send_payment",
     description:
-      "Pay a Lightning invoice (BOLT11). Creates and confirms the payment. Use this when someone gives you a Lightning invoice to pay.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        invoice: {
-          type: "string",
-          description: "BOLT11 Lightning invoice string (starts with lnbc...)",
-        },
-        confirmed: {
-          type: "boolean",
-          description: "Set to true only after the user has explicitly confirmed the payment. First call without this to show payment details.",
-        },
-      },
-      required: ["invoice"],
-    },
-  },
-  {
-    name: "send_to_address",
-    description:
-      "Send Bitcoin to a Lightning Address (user@domain.com). Lightning Addresses are like email addresses for Bitcoin.",
+      "Send Bitcoin to a Lightning address (e.g. user@getalby.com). Creates and confirms the payment.",
     input_schema: {
       type: "object" as const,
       properties: {
         address: {
           type: "string",
-          description: "Lightning Address (e.g. alice@getalby.com)",
+          description: "Lightning address (e.g. alice@getalby.com)",
         },
         amount_sats: {
           type: "number",
-          description: "Amount to send in satoshis",
-        },
-        confirmed: {
-          type: "boolean",
-          description: "Set to true only after the user has explicitly confirmed the payment.",
+          description: "Amount in satoshis to send",
         },
       },
       required: ["address", "amount_sats"],
     },
   },
   {
-    name: "get_exchange_rate",
-    description:
-      "Get current BTC exchange rates against USD, USDT, and other supported currencies.",
-    input_schema: {
-      type: "object" as const,
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: "list_transactions",
-    description:
-      "List recent transactions. Shows payment history with status, amounts, and methods.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        limit: {
-          type: "number",
-          description: "Number of transactions to return (default: 10)",
-        },
-        status: {
-          type: "string",
-          description: "Filter by status: completed, pending, failed, expired",
-        },
-      },
-      required: [],
-    },
-  },
-  {
-    name: "check_transaction",
+    name: "check_payment",
     description:
       "Check the status of a specific transaction by its ID.",
     input_schema: {
@@ -121,66 +82,111 @@ export const tools: Anthropic.Tool[] = [
     },
   },
   {
-    name: "decode_invoice",
+    name: "list_transactions",
     description:
-      "Decode and inspect a Lightning invoice before paying it. Shows amount, expiry, and destination.",
+      "List recent transactions. Returns the latest payments sent and received.",
     input_schema: {
       type: "object" as const,
       properties: {
-        invoice: {
-          type: "string",
-          description: "BOLT11 invoice string to decode",
-        },
-      },
-      required: ["invoice"],
-    },
-  },
-  {
-    name: "get_deposit_address",
-    description:
-      "Get a Bitcoin on-chain deposit address or USDT deposit address to receive funds.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        currency: {
-          type: "string",
-          enum: ["BTC", "USDT"],
-          description: "Currency to get deposit address for (default: BTC)",
-        },
-        chain: {
-          type: "string",
-          enum: ["TRON", "ETH"],
-          description: "For USDT only: blockchain to use (default: TRON)",
+        limit: {
+          type: "number",
+          description: "Number of transactions to return (default: 10, max: 50)",
         },
       },
       required: [],
     },
   },
   {
-    name: "convert_currency",
+    name: "get_exchange_rate",
     description:
-      "Convert between currencies in your wallet (e.g. BTC to USDT or USDT to BTC). Settles instantly.",
+      "Get current BTC exchange rates (BTC/USD, BTC/VND, etc.).",
     input_schema: {
       type: "object" as const,
-      properties: {
-        from_currency: {
-          type: "string",
-          description: "Source currency (e.g. BTC, USDT)",
-        },
-        to_currency: {
-          type: "string",
-          description: "Destination currency (e.g. USDT, BTC)",
-        },
-        amount: {
-          type: "number",
-          description: "Amount in the source currency (BTC amounts in BTC, not sats)",
-        },
-        confirmed: {
-          type: "boolean",
-          description: "Set to true only after the user has explicitly confirmed the conversion.",
-        },
-      },
-      required: ["from_currency", "to_currency", "amount"],
+      properties: {},
+      required: [],
     },
   },
 ];
+
+// ── Tool implementations ────────────────────────────────────
+
+export async function executeTool(
+  name: string,
+  input: Record<string, unknown>
+): Promise<string> {
+  const neutron = getNeutron();
+
+  switch (name) {
+    case "check_balance": {
+      const wallets = await neutron.account.wallets();
+      const lines = wallets.map(
+        (w) => `${w.ccy}: ${w.availableBalance}`
+      );
+      return lines.length > 0
+        ? lines.join("\n")
+        : "No wallets found.";
+    }
+
+    case "create_invoice": {
+      const amountSats = input.amount_sats as number;
+      const memo = (input.memo as string) || "Payment";
+      const invoice = await neutron.lightning.createInvoice({
+        amountSats,
+        memo,
+      });
+      return [
+        `Invoice created for ${formatSats(amountSats)}`,
+        `BOLT11: ${invoice.invoice}`,
+        `Transaction ID: ${invoice.txnId}`,
+        invoice.qrPageUrl ? `QR page: ${invoice.qrPageUrl}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    }
+
+    case "send_payment": {
+      const address = input.address as string;
+      const amountSats = input.amount_sats as number;
+      const txn = await neutron.lightning.payAddress(address, {
+        amountSats,
+      });
+      await neutron.transactions.confirm(txn.txnId);
+      return `Payment of ${formatSats(amountSats)} sent to ${address}. Transaction ID: ${txn.txnId}`;
+    }
+
+    case "check_payment": {
+      const txnId = input.txn_id as string;
+      const txn = await neutron.transactions.get(txnId);
+      return [
+        `Transaction: ${txn.txnId}`,
+        `State: ${txn.txnState}`,
+        `Amount: ${txn.sourceReq?.amtRequested ?? "N/A"}`,
+        `Created: ${txn.createdAt}`,
+      ].join("\n");
+    }
+
+    case "list_transactions": {
+      const limit = (input.limit as number) || 10;
+      const list = await neutron.transactions.list({ limit });
+      if (!list || list.length === 0) {
+        return "No transactions found.";
+      }
+      return list
+        .map(
+          (t: { txnState?: string; txnId?: string; sourceReq?: { ccy?: string; amtRequested?: number } }) =>
+            `[${t.txnState}] ${t.txnId} — ${t.sourceReq?.ccy ?? "?"} ${t.sourceReq?.amtRequested ?? "?"}`
+        )
+        .join("\n");
+    }
+
+    case "get_exchange_rate": {
+      const rates = await neutron.rates.get();
+      return Object.entries(rates as Record<string, number>)
+        .map(([pair, rate]) => `${pair}: ${rate}`)
+        .join("\n");
+    }
+
+    default:
+      return `Unknown tool: ${name}`;
+  }
+}
