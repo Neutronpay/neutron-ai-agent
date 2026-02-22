@@ -25,5 +25,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "overrides": {
+    "debug": "^4.4.3"
   }
 }
