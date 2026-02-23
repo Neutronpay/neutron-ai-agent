@@ -9,13 +9,20 @@
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts"
   },
-  "keywords": ["bitcoin", "lightning", "ai-agent", "neutron", "claude", "payments"],
+  "keywords": [
+    "bitcoin",
+    "lightning",
+    "ai-agent",
+    "neutron",
+    "claude",
+    "payments"
+  ],
   "license": "MIT",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
-    "neutron-sdk": "^0.1.0",
+    "@anthropic-ai/sdk": "^0.78.0",
+    "dotenv": "^16.4.0",
     "express": "^4.21.0",
-    "dotenv": "^16.4.0"
+    "neutron-sdk": "^0.1.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
